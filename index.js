@@ -23,7 +23,7 @@ app.use(cors());
 var server = app.listen(process.env.PORT || 6700, '0.0.0.0');
 //var io = socketio.listen(server);
 
-//app.use(fileUpload({safeFileNames: true, preserveExtension: true}));
+app.use(fileUpload({safeFileNames: true, preserveExtension: 4}));
 
 // const RSA_PUBLIC_KEY = fs.readFileSync('keys/public.key');
 
@@ -58,7 +58,7 @@ app.param(['id'], (q,s,n) => n());
 app.get('/profile', isAuthed, (req, res) => {
     if(req.user && req.user._id){
         //TODO: Add Projects and Appointments
-        Managers.findById(req.user._id).select('name surname email level biography cover image').exec((err, profile) => {
+        Managers.findById(req.user._id).select('name surname email level biography cover image').populate('projects').populate('appointments').exec((err, profile) => {
             if(err)
                 res.status(400).send(err);
             else
@@ -67,6 +67,54 @@ app.get('/profile', isAuthed, (req, res) => {
     } else {
         res.status(400).send({ error: 'Auth Error' });
     }
+});
+
+//Manager:Register
+app.post('/profile/edit', (req, res) => {
+    req.body = filter(req.body, 'name surname biography employment');
+    
+    if(req.user && req.user._id){
+        if(req.files){
+            if(req.files.cover){
+                req.body.cover = 'cover_' + req.user._id + '.' + req.files.cover.name.split('.')[1];
+                req.files.cover.mv('./images/' + req.body.cover, () => {});
+            }
+            if(req.files.image){
+                req.body.image = 'avatar_' + req.user._id + '.' + req.files.image.name.split('.')[1];
+                req.files.image.mv('./images/' + req.body.image, () => {});
+            }
+        }
+
+        if(req.body.length){
+            Managers.findByIdAndUpdate(req.user._id, req.body, { new: true }).select('name surname email level biography cover image').exec((err, profile) => {
+                if(err)
+                    res.status(400).send(err);
+                else
+                    res.status(200).send(profile);
+            });
+        }else{
+            res.status(400).send('No changes made.');
+        }
+    } else {
+        res.status(400).send({ error: 'Auth Error' });
+    }
+
+    var details = req.body;
+
+    Managers.create(details, (err, manager) => {
+        if(err)
+            res.status(400).send(err);
+        else{
+            const jwtBearerToken = jwt.sign({ _id: manager._id, level: manager.level, email: manager.email }, SECRET,{
+                expiresIn: '24h'
+            });
+    
+            res.status(200).send({
+                token: jwtBearerToken,
+                email: manager.email
+            }); 
+        }
+    });
 });
 
 //Manager:Upgrade
@@ -115,7 +163,7 @@ app.post('/register', (req, res) => {
     });
 });
 
-//MAnager:Login
+//Manager:Login
 app.post('/login', (req, res) => {
     req.body = filter(req.body, 'email password');
     
@@ -210,7 +258,6 @@ app.get('/managers/:id', (req, res) => {
                 res.status(200).send(manager[0]);
         });
     }
-    console.log(managerId);
 });
 
 //Project: Get 
