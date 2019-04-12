@@ -58,7 +58,7 @@ app.param(['id'], (q,s,n) => n());
 app.get('/profile', isAuthed, (req, res) => {
     if(req.user && req.user._id){
         //TODO: Add Projects and Appointments
-        Managers.findById(req.user._id).select('name surname email level biography cover image').populate('projects').populate('appointments').exec((err, profile) => {
+        Managers.findById(req.user._id).select('name surname email level biography employment cover image').populate('projects').populate('appointments').exec((err, profile) => {
             if(err)
                 res.status(400).send(err);
             else
@@ -86,7 +86,7 @@ app.post('/profile/edit', isAuthed, (req, res) => {
         }
 
         if(Object.keys(req.body).length){
-            Managers.findByIdAndUpdate(req.user._id, req.body, { new: true }).select('name surname email level biography cover image').exec((err, profile) => {
+            Managers.findByIdAndUpdate(req.user._id, req.body, { new: true }).select('name surname email level biography employment cover image').exec((err, profile) => {
                 if(err)
                     res.status(400).send(err);
                 else
