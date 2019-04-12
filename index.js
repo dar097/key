@@ -98,23 +98,6 @@ app.post('/profile/edit', (req, res) => {
     } else {
         res.status(400).send({ error: 'Auth Error' });
     }
-
-    var details = req.body;
-
-    Managers.create(details, (err, manager) => {
-        if(err)
-            res.status(400).send(err);
-        else{
-            const jwtBearerToken = jwt.sign({ _id: manager._id, level: manager.level, email: manager.email }, SECRET,{
-                expiresIn: '24h'
-            });
-    
-            res.status(200).send({
-                token: jwtBearerToken,
-                email: manager.email
-            }); 
-        }
-    });
 });
 
 //Manager:Upgrade
