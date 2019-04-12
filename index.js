@@ -69,8 +69,8 @@ app.get('/profile', isAuthed, (req, res) => {
     }
 });
 
-//Manager:Register
-app.post('/profile/edit', (req, res) => {
+//Manager:Edit
+app.post('/profile/edit', isAuthed, (req, res) => {
     req.body = filter(req.body, 'name surname biography employment');
     
     if(req.user && req.user._id){
