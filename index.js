@@ -85,7 +85,7 @@ app.post('/profile/edit', isAuthed, (req, res) => {
             }
         }
 
-        if(req.body.length){
+        if(Object.keys(req.body).length){
             Managers.findByIdAndUpdate(req.user._id, req.body, { new: true }).select('name surname email level biography cover image').exec((err, profile) => {
                 if(err)
                     res.status(400).send(err);
@@ -122,7 +122,7 @@ app.post('/upgrade', isAuthed, (req, res) => {
     } else {
         res.status(400).send({ error: 'Auth Error' });
     }
-})
+});
 
 //Manager:Register
 app.post('/register', (req, res) => {
@@ -173,7 +173,7 @@ app.post('/login', (req, res) => {
                 res.status(400).send('Invalid email or password.');
             }
         }
-    })
+    });
 });
 
 //Manager:Get X
@@ -283,7 +283,7 @@ app.get('/appointments', isAuthed, (req, res) => {
     } else {
         res.status(400).send({ error: 'Auth Error' });
     }
-})
+});
 
 //TODO
 //Project: Add, Edit
