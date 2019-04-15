@@ -45,6 +45,8 @@ function filter(params, items){
     return params;
 }
 
+app.use('/images', express.static('images'));
+
 app.all('/', function(req, res){
     res.status(200).send({info: 'Server is up.' });
 });
