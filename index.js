@@ -132,47 +132,56 @@ app.get('/profile', isAuthed, (req, res) => {
     }
 });
 
+function profileEditFields(req, res){
+    if(Object.keys(req.body).length){
+        Managers.findByIdAndUpdate(req.user._id, req.body, { new: true }).select('name surname email level biography employment cover image').exec((err, profile) => {
+            if(err)
+                res.status(400).send(err);
+            else
+                res.status(200).send(profile);
+        });
+    }
+    else{
+        res.status(400).send({ error: "No changes made." });
+    }
+}
+
+function profileEditImage(req, res){
+    if(req.files && req.files.image){
+        cloudinary.uploader.upload_stream({resource_type: 'image'},(err, result) => {
+            if(result)
+                req.body.image = result.secure_url;
+            else
+                console.log(err);
+
+            profileEditFields(req, res);            
+        }).end(req.files.image.data);
+    }
+    else
+        profileEditFields(req, res);
+}
+
+function profileEditCover(req, res){
+    if(req.files && req.files.cover){
+        cloudinary.uploader.upload_stream({resource_type: 'image'},(err, result) => {
+            if(result)
+                req.body.cover = result.secure_url;
+            else
+                console.log(err);
+
+            profileEditImage(req, res);
+        }).end(req.files.cover.data);
+    }
+    else
+        profileEditImage(req, res);
+}
+
 //Manager:Edit
 app.post('/profile/edit', isAuthed, (req, res) => {
     req.body = filter(req.body, 'name surname biography employment');
     
-    var noChanges = true;
     if(req.user && req.user._id){
-        if(req.files){
-            if(req.files.cover){
-                noChanges = false;
-                cloudinary.uploader.upload_stream({resource_type: 'image'},(err, result) => {
-                    Managers.findByIdAndUpdate(req.user._id, { cover: result.secure_url}).exec(()=>{});
-                }).end(req.files.cover.data);
-            
-                // req.body.cover = 'cover_' + req.user._id + '.' + req.files.cover.name.split('.')[1];
-                // req.files.cover.mv('./images/' + req.body.cover, () => {
-                //     cloudinary.uploader.upload('/images/' + req.body.cover)
-                // });
-            }
-            if(req.files.image){
-                noChanges = false;
-                cloudinary.uploader.upload_stream({resource_type: 'image'},(err, result) => {
-                    Managers.findByIdAndUpdate(req.user._id, { image: result.secure_url}).exec(()=>{});
-                }).end(req.files.image.data);
-                // req.body.image = 'avatar_' + req.user._id + '.' + req.files.image.name.split('.')[1];
-                // req.files.image.mv('./images/' + req.body.image, () => {});
-            }
-        }
-
-        if(Object.keys(req.body).length){
-            noChanges = false;
-            Managers.findByIdAndUpdate(req.user._id, req.body, { new: true }).select('name surname email level biography employment cover image').exec((err, profile) => {
-                if(err)
-                    res.status(400).send(err);
-                else
-                    res.status(200).send({ message: "Profile modified." });
-            });
-        }
-        
-        if(noChanges){
-            res.status(400).send({ erro: "No changes made." });
-        }
+        profileEditCover(req, res);
     } else {
         res.status(400).send({ error: 'Auth Error' });
     }
