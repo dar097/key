@@ -6,6 +6,16 @@ var cors = require('cors');
 var fileUpload = require('express-fileupload');
 var jwt = require('jsonwebtoken');
 var expressJwt = require('express-jwt');
+var cloudinary = require('cloudinary').v2;
+var ppf = require('promise.prototype.finally');
+ppf.shim();
+
+cloudinary.config({ 
+    cloud_name: 'dkd7exqrr', 
+    api_key: '337826315523454', 
+    api_secret: 'VMljDE5Y6hRSE5ER-IYtnZ35fPE' 
+});
+
 var fs = require('fs');
 var socketio = require('socket.io');
 
@@ -75,26 +85,41 @@ app.get('/profile', isAuthed, (req, res) => {
 app.post('/profile/edit', isAuthed, (req, res) => {
     req.body = filter(req.body, 'name surname biography employment');
     
+    var noChanges = true;
     if(req.user && req.user._id){
         if(req.files){
             if(req.files.cover){
-                req.body.cover = 'cover_' + req.user._id + '.' + req.files.cover.name.split('.')[1];
-                req.files.cover.mv('./images/' + req.body.cover, () => {});
+                noChanges = false;
+                cloudinary.uploader.upload_stream({resource_type: 'image'},(err, result) => {
+                    Managers.findByIdAndUpdate(req.user._id, { cover: result.secure_url}).exec(()=>{});
+                }).end(req.files.cover.data);
+            
+                // req.body.cover = 'cover_' + req.user._id + '.' + req.files.cover.name.split('.')[1];
+                // req.files.cover.mv('./images/' + req.body.cover, () => {
+                //     cloudinary.uploader.upload('/images/' + req.body.cover)
+                // });
             }
             if(req.files.image){
-                req.body.image = 'avatar_' + req.user._id + '.' + req.files.image.name.split('.')[1];
-                req.files.image.mv('./images/' + req.body.image, () => {});
+                noChanges = false;
+                cloudinary.uploader.upload_stream({resource_type: 'image'},(err, result) => {
+                    Managers.findByIdAndUpdate(req.user._id, { image: result.secure_url}).exec(()=>{});
+                }).end(req.files.image.data);
+                // req.body.image = 'avatar_' + req.user._id + '.' + req.files.image.name.split('.')[1];
+                // req.files.image.mv('./images/' + req.body.image, () => {});
             }
         }
 
         if(Object.keys(req.body).length){
+            noChanges = false;
             Managers.findByIdAndUpdate(req.user._id, req.body, { new: true }).select('name surname email level biography employment cover image').exec((err, profile) => {
                 if(err)
                     res.status(400).send(err);
                 else
-                    res.status(200).send(profile);
+                    res.status(200).send("Profile modified.");
             });
-        }else{
+        }
+        
+        if(noChanges){
             res.status(400).send('No changes made.');
         }
     } else {
