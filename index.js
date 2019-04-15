@@ -166,12 +166,12 @@ app.post('/profile/edit', isAuthed, (req, res) => {
                 if(err)
                     res.status(400).send(err);
                 else
-                    res.status(200).send("Profile modified.");
+                    res.status(200).send({ message: "Profile modified." });
             });
         }
         
         if(noChanges){
-            res.status(400).send('No changes made.');
+            res.status(400).send({ erro: "No changes made." });
         }
     } else {
         res.status(400).send({ error: 'Auth Error' });
@@ -250,7 +250,7 @@ app.post('/login', (req, res) => {
             }
             else
             {
-                res.status(400).send('Invalid email or password.');
+                res.status(400).send({ error: "Invalid email or password." });
             }
         }
     });
@@ -335,7 +335,7 @@ app.post('/appointments/set', (req, res) => {
             if(err || !appointment)
                 res.status(400).send(err || 'Failed to create appointment');
             else{
-                res.status(200).send('Appointment set successfully.');
+                res.status(200).send({ message: 'Appointment set successfully.' });
             }
         });
     }
@@ -373,16 +373,6 @@ app.get('/appointments', isAuthed, (req, res) => {
     }
 });
 
-//Project: Get 
-// app.get('/projects/:id', (req, res) => {
-//     var param = req.params.id;
-//     if(!mongoose.Types.ObjectId.isValid(param)){
-//         res.status(400).send({ error: 1, message: 'Invalid ID'});
-//     }else{
-//         Projects.findById(param, ())
-//     }
-// });
-
 app.post('/projects/create', isAuthed, (req, res) => {
     if(req.user && req.user._id){
         
@@ -394,7 +384,7 @@ app.post('/projects/create', isAuthed, (req, res) => {
             if(err || !project)
                 res.status(400).send(err || 'Failed to create project');
             else{
-                res.status(200).send('Project set successfully.');
+                res.status(200).send({ message: 'Project set successfully.' });
             }
         });
     } else {
@@ -415,7 +405,7 @@ app.post('/projects/:id/edit', isAuthed, (req, res) => {
             if(err || !project)
                 res.status(400).send(err || 'Project not found or does not exist.');
             else{
-                res.status(200).send('Project modified successfully.');
+                res.status(200).send({ message: 'Project modified successfully.' });
             }
         });
     } else {
@@ -479,7 +469,6 @@ app.get('/projects/:id', (req, res) => {
 });
 
 //TODO
-//Project: Add, Edit
 //Stage: Add, Edit, Delete
 
 //Mongoose Connection
