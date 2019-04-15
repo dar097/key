@@ -70,11 +70,62 @@ app.param(['id'], (q,s,n) => n());
 app.get('/profile', isAuthed, (req, res) => {
     if(req.user && req.user._id){
         //TODO: Add Projects and Appointments
-        Managers.findById(req.user._id).select('name surname email level biography employment cover image').populate('projects').populate('appointments').exec((err, profile) => {
-            if(err)
-                res.status(400).send(err);
+        var managerId = mongoose.Types.ObjectId(req.user._id);
+        Managers.aggregate([
+            {
+                $match: {
+                    _id: managerId
+                }
+            },
+            {
+                $lookup: {
+                    from: 'projects',
+                    let: { mid: "$_id"},
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: { $eq: [ "$manager", "$$mid"] },
+                                public: true
+                            }
+                        },
+                        {
+                            $project: {
+                                name: 1, locality: 1, description: 1, cover: 1, created: 1, year: { $dateToString: { format: "%Y", date: "$created" } }
+                            }
+                        }
+                    ],
+                    as: 'projects'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'appointments',
+                    let: { mid: "$_id"},
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: { $eq: [ "$manager", "$$mid"] },
+                            }
+                        },
+                        {
+                            $project: {
+                                manager: 0
+                            }
+                        }
+                    ],
+                    as: 'appointments'
+                }
+            },
+            {
+                $project: {
+                    __v: 0, password: 0
+                }
+            }
+        ], (err, manager) => {
+            if(err || !manager || !manager.length)
+                res.status(400).send(err || 'Manager not found');
             else
-                res.status(200).send(profile);
+                res.status(200).send(manager[0]);
         });
     } else {
         res.status(400).send({ error: 'Auth Error' });
@@ -156,6 +207,7 @@ app.post('/register', (req, res) => {
     req.body = filter(req.body, 'email password name surname biography employment');
     
     var details = req.body;
+    details.email = details.email.toLowerCase();
 
     Managers.create(details, (err, manager) => {
         if(err)
@@ -178,6 +230,7 @@ app.post('/login', (req, res) => {
     req.body = filter(req.body, 'email password');
     
     var credentials = req.body;
+    credentials.email = credentials.email.toLowerCase();
 
     Managers.findOne(credentials).select('name surname email level biography').exec((err, manager) => {
         if(err)
@@ -270,16 +323,6 @@ app.get('/managers/:id', (req, res) => {
     }
 });
 
-//Project: Get 
-// app.get('/projects/:id', (req, res) => {
-//     var param = req.params.id;
-//     if(!mongoose.Types.ObjectId.isValid(param)){
-//         res.status(400).send({ error: 1, message: 'Invalid ID'});
-//     }else{
-//         Projects.findById(param, ())
-//     }
-// })
-
 //Appointment: Add
 app.post('/appointments/set', (req, res) => {
     req.body = filter(req.body, 'name surname email mobile description manager');
@@ -298,6 +341,24 @@ app.post('/appointments/set', (req, res) => {
     }
 });
 
+app.get('/appointments/:id', isAuthed, (req, res) => {
+    if(!req.params.id || !mongoose.Types.ObjectId.isValid(req.params.id)){
+        res.status(400).send({ error: 'Bad Id'});
+        return;
+    }
+
+    if(req.user && req.user._id){
+        Appointments.findByIdAndUpdate({ _id: req.params.id }, { read: true }, { new: true }, (err, appointment) => {
+            if(err || !appointment)
+                res.status(400).send(err || 'Appointment not found.');
+            else
+                res.status(200).send(appointment);
+        });
+    } else {
+        res.status(400).send({ error: 'Auth Error' });
+    }
+});
+
 //Appointment: Get User's
 app.get('/appointments', isAuthed, (req, res) => {
     if(req.user && req.user._id){
@@ -310,6 +371,111 @@ app.get('/appointments', isAuthed, (req, res) => {
     } else {
         res.status(400).send({ error: 'Auth Error' });
     }
+});
+
+//Project: Get 
+// app.get('/projects/:id', (req, res) => {
+//     var param = req.params.id;
+//     if(!mongoose.Types.ObjectId.isValid(param)){
+//         res.status(400).send({ error: 1, message: 'Invalid ID'});
+//     }else{
+//         Projects.findById(param, ())
+//     }
+// });
+
+app.post('/projects/create', isAuthed, (req, res) => {
+    if(req.user && req.user._id){
+        
+        req.body = filter(req.body, 'name locality description client public cover');
+
+        req.body.manager = req.user._id;
+
+        Projects.create(req.body, (err, project) => {
+            if(err || !project)
+                res.status(400).send(err || 'Failed to create project');
+            else{
+                res.status(200).send('Project set successfully.');
+            }
+        });
+    } else {
+        res.status(400).send({ error: 'Auth Error' });
+    }
+});
+
+app.post('/projects/:id/edit', isAuthed, (req, res) => {
+    if(!req.params.id || !mongoose.Types.ObjectId.isValid(req.params.id)){
+        res.status(400).send({ error: 'Bad Id'});
+        return;
+    }
+
+    if(req.user && req.user._id){
+        req.body = filter(req.body, 'name locality description client public cover');
+
+        Projects.findByIdAndUpdate(req.params.id, req.body, { new: true }, (err, edited) => {
+            if(err || !project)
+                res.status(400).send(err || 'Project not found or does not exist.');
+            else{
+                res.status(200).send('Project modified successfully.');
+            }
+        });
+    } else {
+        res.status(400).send({ error: 'Auth Error' });
+    }
+});
+
+app.get('/projects/:id', (req, res) => {
+    if(!req.params.id || !mongoose.Types.ObjectId.isValid(req.params.id)){
+        res.status(400).send({ error: 'Bad Id'});
+        return;
+    }
+
+    var manager = '000000000000000000000000';
+    if(req.headers && req.headers.authorization){
+        var token = req.headers.authorization.split(' ')[1];
+        manager = jwt.decode(token)._id || '000000000000000000000000';
+    }
+    
+    manager = mongoose.Types.ObjectId(manager);
+
+
+    Projects.aggregate([
+        {
+            $match: {
+                $or: [ { manager }, { public: true } ]
+            }
+        },
+        {
+            $lookup: {
+                from: 'project_managers',
+                let: { mid: "$manager" },
+                pipeline: [
+                    {
+                        $match: {
+                            $expr: { $eq: ["$$mid", "$_id"]}
+                        }
+                    },
+                    {
+                        $project: {
+                            name: 1, surname: 1, employment: 1, image: 1
+                        }
+                    }
+                ],
+                as: 'manager'
+            }
+        },
+        { $unwind: "$manager" },
+        {
+            $project: {
+                name: 1, locality: 1, manager: 1, description: 1, cover: 1, created: 1, year: { $dateToString: { format: "%Y", date: "$created" } }
+            }
+        }
+    ]).exec((err, project) => {
+        if(err || !project || !project.length)
+            res.status(400).send(err || 'Project not found or does not exist.');
+        else{
+            res.status(200).send(project[0]);
+        }
+    });
 });
 
 //TODO
