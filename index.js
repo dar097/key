@@ -271,7 +271,7 @@ app.get('/managers', (req, res) => {
     Managers.aggregate([
         {
             $project: {
-                name: 1, cover: 1, image: 1, employment: 1
+                _id: 1, name: 1, surname: 1, cover: 1, image: 1, employment: 1
             }
         },
         {
