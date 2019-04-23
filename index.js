@@ -154,11 +154,31 @@ function profileEditImage(req, res){
             else
                 console.log(err);
 
-            profileEditFields(req, res);            
+                profileEditCover(req, res);            
         }).end(req.files.image.data);
     }
     else
-        profileEditFields(req, res);
+        profileEditCover(req, res);
+}
+
+function UploadFile(req, file, cb){
+    if(req.files && req.files[file]){
+        loudinary.uploader.upload_stream({resource_type: 'image'},(err, result) => {
+            if(result)
+                req.body[file] = result.secure_url;
+            else
+                console.log(err);
+
+            if(cb && typeof cb == 'function')
+                cb();
+
+        }).end(req.files[file].data);
+    }
+    else
+    {
+        if(cb && typeof cb == 'function')
+            cb();
+    }
 }
 
 function profileEditCover(req, res){
@@ -169,11 +189,11 @@ function profileEditCover(req, res){
             else
                 console.log(err);
 
-            profileEditImage(req, res);
+                profileEditFields(req, res);
         }).end(req.files.cover.data);
     }
     else
-        profileEditImage(req, res);
+        profileEditFields(req, res);
 }
 
 //Manager:Edit
@@ -181,7 +201,22 @@ app.post('/profile/edit', isAuthed, (req, res) => {
     req.body = filter(req.body, 'name surname biography employment');
     
     if(req.user && req.user._id){
-        profileEditCover(req, res);
+        UploadFile(req, 'image', () => {
+            UploadFile(req, 'cover', () => {
+                if(Object.keys(req.body).length){
+                    console.log(req.body);
+                    Managers.findByIdAndUpdate(req.user._id, req.body, { new: true }).select('name surname email level biography employment cover image').exec((err, profile) => {
+                        if(err)
+                            res.status(400).send(err);
+                        else
+                            res.status(200).send(profile);
+                    });
+                }
+                else{
+                    res.status(400).send({ error: "No changes made." });
+                }
+            })
+        })
     } else {
         res.status(400).send({ error: 'Auth Error' });
     }
@@ -385,7 +420,7 @@ app.get('/appointments', isAuthed, (req, res) => {
 app.post('/projects/create', isAuthed, (req, res) => {
     if(req.user && req.user._id){
         
-        req.body = filter(req.body, 'name locality description client public cover');
+        req.body = filter(req.body, 'name locality description client public');
 
         req.body.manager = req.user._id;
 
