@@ -414,7 +414,7 @@ app.post('/projects/:id/edit', isAuthed, (req, res) => {
 
         UploadFile(req, "cover", () => {
             Projects.findByIdAndUpdate(req.params.id, req.body, { new: true }, (err, edited) => {
-                if(err || !project)
+                if(err || !edited)
                     res.status(400).send(err || 'Project not found or does not exist.');
                 else{
                     res.status(200).send({ message: 'Project modified successfully.' });
@@ -508,7 +508,7 @@ app.get('/projects/:id', (req, res) => {
         },
         {
             $project: {
-                name: 1, locality: 1, manager: 1, description: 1, cover: 1, created: 1, year: { $dateToString: { format: "%Y", date: "$created" }, stages: 1 }
+                name: 1, locality: 1, manager: 1, description: 1, cover: 1, created: 1, year: { $dateToString: { format: "%Y", date: "$created" } }, stages: 1
             }
         }
     ]).exec((err, project) => {
