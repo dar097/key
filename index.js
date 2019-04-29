@@ -132,38 +132,9 @@ app.get('/profile', isAuthed, (req, res) => {
     }
 });
 
-function profileEditFields(req, res){
-    if(Object.keys(req.body).length){
-        Managers.findByIdAndUpdate(req.user._id, req.body, { new: true }).select('name surname email level biography employment cover image').exec((err, profile) => {
-            if(err)
-                res.status(400).send(err);
-            else
-                res.status(200).send(profile);
-        });
-    }
-    else{
-        res.status(400).send({ error: "No changes made." });
-    }
-}
-
-function profileEditImage(req, res){
-    if(req.files && req.files.image){
-        cloudinary.uploader.upload_stream({resource_type: 'image'},(err, result) => {
-            if(result)
-                req.body.image = result.secure_url;
-            else
-                console.log(err);
-
-                profileEditCover(req, res);            
-        }).end(req.files.image.data);
-    }
-    else
-        profileEditCover(req, res);
-}
-
 function UploadFile(req, file, cb){
     if(req.files && req.files[file]){
-        loudinary.uploader.upload_stream({resource_type: 'image'},(err, result) => {
+        cloudinary.uploader.upload_stream({resource_type: file.includes('image') || file == 'cover' ? 'image' : 'raw'},(err, result) => {
             if(result)
                 req.body[file] = result.secure_url;
             else
@@ -181,19 +152,15 @@ function UploadFile(req, file, cb){
     }
 }
 
-function profileEditCover(req, res){
-    if(req.files && req.files.cover){
-        cloudinary.uploader.upload_stream({resource_type: 'image'},(err, result) => {
-            if(result)
-                req.body.cover = result.secure_url;
-            else
-                console.log(err);
-
-                profileEditFields(req, res);
-        }).end(req.files.cover.data);
+function UploadManyFiles(req, files, current, cb){
+    if(current == files.length-1){
+        cb();
+        return;
     }
-    else
-        profileEditFields(req, res);
+
+    UploadFile(req, files[current], () => {
+        UploadManyFiles(req, files, ++current, cb);
+    });
 }
 
 //Manager:Edit
@@ -201,22 +168,20 @@ app.post('/profile/edit', isAuthed, (req, res) => {
     req.body = filter(req.body, 'name surname biography employment');
     
     if(req.user && req.user._id){
-        UploadFile(req, 'image', () => {
-            UploadFile(req, 'cover', () => {
-                if(Object.keys(req.body).length){
-                    console.log(req.body);
-                    Managers.findByIdAndUpdate(req.user._id, req.body, { new: true }).select('name surname email level biography employment cover image').exec((err, profile) => {
-                        if(err)
-                            res.status(400).send(err);
-                        else
-                            res.status(200).send(profile);
-                    });
-                }
-                else{
-                    res.status(400).send({ error: "No changes made." });
-                }
-            })
-        })
+        UploadManyFiles(req, ['image', 'cover'], 0, () => {
+            if(Object.keys(req.body).length){
+                console.log(req.body);
+                Managers.findByIdAndUpdate(req.user._id, req.body, { new: true }).select('name surname email level biography employment cover image').exec((err, profile) => {
+                    if(err)
+                        res.status(400).send(err);
+                    else
+                        res.status(200).send(profile);
+                });
+            }
+            else{
+                res.status(400).send({ error: "No changes made." });
+            }
+        });
     } else {
         res.status(400).send({ error: 'Auth Error' });
     }
@@ -424,12 +389,14 @@ app.post('/projects/create', isAuthed, (req, res) => {
 
         req.body.manager = req.user._id;
 
-        Projects.create(req.body, (err, project) => {
-            if(err || !project)
-                res.status(400).send(err || 'Failed to create project');
-            else{
-                res.status(200).send({ message: 'Project set successfully.' });
-            }
+        UploadFile(req, "cover", () => {
+            Projects.create(req.body, (err, project) => {
+                if(err || !project)
+                    res.status(400).send(err || 'Failed to create project');
+                else{
+                    res.status(200).send({ message: 'Project set successfully.' });
+                }
+            });
         });
     } else {
         res.status(400).send({ error: 'Auth Error' });
@@ -443,13 +410,34 @@ app.post('/projects/:id/edit', isAuthed, (req, res) => {
     }
 
     if(req.user && req.user._id){
-        req.body = filter(req.body, 'name locality description client public cover');
+        req.body = filter(req.body, 'name locality description client public');
 
-        Projects.findByIdAndUpdate(req.params.id, req.body, { new: true }, (err, edited) => {
-            if(err || !project)
+        UploadFile(req, "cover", () => {
+            Projects.findByIdAndUpdate(req.params.id, req.body, { new: true }, (err, edited) => {
+                if(err || !project)
+                    res.status(400).send(err || 'Project not found or does not exist.');
+                else{
+                    res.status(200).send({ message: 'Project modified successfully.' });
+                }
+            });
+        });
+    } else {
+        res.status(400).send({ error: 'Auth Error' });
+    }
+});
+
+app.post('/projects/:id/delete', isAuthed, (req, res) => {
+    if(!req.params.id || !mongoose.Types.ObjectId.isValid(req.params.id)){
+        res.status(400).send({ error: 'Bad Id'});
+        return;
+    }
+
+    if(req.user && req.user._id){
+        Projects.findByIdAndRemove(req.params.id, (err, removed) => {
+            if(err)
                 res.status(400).send(err || 'Project not found or does not exist.');
             else{
-                res.status(200).send({ message: 'Project modified successfully.' });
+                res.status(200).send({ message: 'Project removed successfully.' });
             }
         });
     } else {
@@ -499,8 +487,28 @@ app.get('/projects/:id', (req, res) => {
         },
         { $unwind: "$manager" },
         {
+            $lookup: {
+                from: 'stages',
+                let: { pid: "$_id" },
+                pipeline: [
+                    {
+                        $match: {
+                            $expr: { $eq: ["$$pid", "$project"]},
+                            status: true
+                        }
+                    },
+                    {
+                        $project: {
+                            __v: 0
+                        }
+                    }
+                ],
+                as: 'stages'
+            }
+        },
+        {
             $project: {
-                name: 1, locality: 1, manager: 1, description: 1, cover: 1, created: 1, year: { $dateToString: { format: "%Y", date: "$created" } }
+                name: 1, locality: 1, manager: 1, description: 1, cover: 1, created: 1, year: { $dateToString: { format: "%Y", date: "$created" }, stages: 1 }
             }
         }
     ]).exec((err, project) => {
@@ -514,6 +522,72 @@ app.get('/projects/:id', (req, res) => {
 
 //TODO
 //Stage: Add, Edit, Delete
+
+//Stages: Add
+app.post('/stages/create', isAuthed, (req, res) => {
+    if(req.user && req.user._id){
+        
+        req.body = filter(req.body, 'name project start_date end_date details price');
+
+        UploadManyFiles(req, Object.keys(req.files), 0, () => {//if images, file parameter needs to contain the word 'image'
+            Stages.create(req.body, (err, stage) => {
+                if(err || !stage)
+                    res.status(400).send(err || 'Failed to create stage');
+                else{
+                    res.status(200).send({ message: 'Stage set successfully.' });
+                }
+            });
+        });
+    } else {
+        res.status(400).send({ error: 'Auth Error' });
+    }
+});
+
+app.post('/stages/:id/edit', isAuthed, (req, res) => {
+    if(req.user && req.user._id){
+        
+        req.body = filter(req.body, 'name project start_date end_date details price status');
+
+        UploadManyFiles(req, Object.keys(req.files), 0, () => {//if images, file parameter needs to contain the word 'image'
+            Stages.findByIdAndUpdate(req.params.id, req.body, { new: true }, (err, stage) => {
+                if(err || !stage)
+                    res.status(400).send(err || 'Failed to update stage');
+                else{
+                    res.status(200).send({ message: 'Stage updated successfully.' });
+                }
+            });
+        });
+    } else {
+        res.status(400).send({ error: 'Auth Error' });
+    }
+});
+
+app.post('/stages/:id/delete', isAuthed, (req, res) => {
+    if(req.user && req.user._id){
+        Stages.findByIdAndRemove(req.params.id, (err, stage) => {
+            if(err)
+                res.status(400).send(err || 'Failed to remove stage');
+            else{
+                res.status(200).send({ message: 'Stage removed successfully.' });
+            }
+        });
+    } else {
+        res.status(400).send({ error: 'Auth Error' });
+    }
+});
+
+// app.get('/stages/:id', isAuthed, (req, res) => {
+//     if(req.user && req.user._id){
+//         Stages.findOne({ project: mongoose.Types.ObjectId(req.params.id) }).select('-__v').exec((err, stages) => {
+//             if(err)
+//                 res.status(400).send(err);
+//             else
+//                 res.status(200).send(appointments);
+//         });
+//     } else {
+//         res.status(400).send({ error: 'Auth Error' });
+//     }
+// });
 
 //Mongoose Connection
 mongoose.connect('mongodb+srv://keyadmin:nf2CY6GtMgG4XTX@keydb-ju9o2.mongodb.net/keydb', { 
