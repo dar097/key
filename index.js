@@ -385,7 +385,7 @@ app.get('/appointments', isAuthed, (req, res) => {
 app.post('/projects/create', isAuthed, (req, res) => {
     if(req.user && req.user._id){
         
-        req.body = filter(req.body, 'name locality description client public');
+        req.body = filter(req.body, 'name locality description client_name client_email client_password public');
 
         req.body.manager = req.user._id;
 
@@ -410,7 +410,7 @@ app.post('/projects/:id/edit', isAuthed, (req, res) => {
     }
 
     if(req.user && req.user._id){
-        req.body = filter(req.body, 'name locality description client public');
+        req.body = filter(req.body, 'name locality description client_name client_email client_password public');
 
         UploadFile(req, "cover", () => {
             Projects.findByIdAndUpdate(req.params.id, req.body, { new: true }, (err, edited) => {

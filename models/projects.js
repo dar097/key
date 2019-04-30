@@ -1,11 +1,5 @@
 var mongoose = require('mongoose');
 
-var ClientSchema = new mongoose.Schema({
-    name: String,
-    email: String,
-    password: String
-}, { _id: false });
-
 var ProjectSchema = new mongoose.Schema({
     name: String,
     locality: {
@@ -18,7 +12,9 @@ var ProjectSchema = new mongoose.Schema({
         required: true
     },
     description: String,
-    client: ClientSchema,
+    client_name: String,
+    client_email: String,
+    client_password: String,
     public: Boolean,
     cover: String
 }, { timestamps: { createdAt: 'created', updatedAt: 'updated' } });
