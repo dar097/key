@@ -613,4 +613,4 @@ app.use(function (err, req, res, next) {
     }
 });
 
-Projects.find({}, (e, r) => console.log(r));
+// Projects.find({}, (e, r) => console.log(r));
