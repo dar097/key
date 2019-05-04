@@ -394,7 +394,7 @@ app.post('/projects/create', isAuthed, (req, res) => {
                 if(err || !project)
                     res.status(400).send(err || 'Failed to create project');
                 else{
-                    res.status(200).send({ message: 'Project set successfully.' });
+                    res.status(200).send({ message: 'Project set successfully.', id: project._id });
                 }
             });
         });
@@ -534,7 +534,7 @@ app.post('/stages/create', isAuthed, (req, res) => {
                 if(err || !stage)
                     res.status(400).send(err || 'Failed to create stage');
                 else{
-                    res.status(200).send({ message: 'Stage set successfully.' });
+                    res.status(200).send({ message: 'Stage set successfully.', id: stage._id });
                 }
             });
         });
@@ -612,3 +612,5 @@ app.use(function (err, req, res, next) {
         res.status(401).send({ origin: req.originalUrl, code: 99, message: err.message });
     }
 });
+
+Projects.find({}, (e, r) => console.log(r));
