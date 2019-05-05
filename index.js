@@ -55,7 +55,7 @@ function filter(params, items){
     return params;
 }
 
-app.use('/images', express.static('images'));
+//app.use('/images', express.static('images'));
 
 app.all('/', function(req, res){
     res.status(200).send({info: 'Server is up.' });
@@ -528,7 +528,7 @@ app.post('/stages/create', isAuthed, (req, res) => {
         
         req.body = filter(req.body, 'name project start_date end_date details price');
 
-        UploadManyFiles(req, Object.keys(req.files), 0, () => {//if images, file parameter needs to contain the word 'image'
+        UploadManyFiles(req, req.files ? Object.keys(req.files) : 0, 0, () => {//if images, file parameter needs to contain the word 'image'
             Stages.create(req.body, (err, stage) => {
                 if(err || !stage)
                     res.status(400).send(err || 'Failed to create stage');
@@ -547,7 +547,7 @@ app.post('/stages/:id/edit', isAuthed, (req, res) => {
         
         req.body = filter(req.body, 'name project start_date end_date details price status');
 
-        UploadManyFiles(req, Object.keys(req.files), 0, () => {//if images, file parameter needs to contain the word 'image'
+        UploadManyFiles(req, req.files ? Object.keys(req.files) : 0, 0, () => {//if images, file parameter needs to contain the word 'image'
             Stages.findByIdAndUpdate(req.params.id, req.body, { new: true }, (err, stage) => {
                 if(err || !stage)
                     res.status(400).send(err || 'Failed to update stage');
