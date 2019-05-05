@@ -455,6 +455,7 @@ app.get('/projects/:id', (req, res) => {
     if(req.headers && req.headers.authorization){
         var token = req.headers.authorization.split(' ')[1];
         manager = jwt.decode(token)._id || '000000000000000000000000';
+        
     }
     
     manager = mongoose.Types.ObjectId(manager);
@@ -508,7 +509,7 @@ app.get('/projects/:id', (req, res) => {
         },
         {
             $project: {
-                name: 1, locality: 1, manager: 1, description: 1, cover: 1, created: 1, year: { $dateToString: { format: "%Y", date: "$created" } }, stages: 1
+                name: 1, locality: 1, manager: 1, description: 1, cover: 1, created: 1, year: { $dateToString: { format: "%Y", date: "$created" } }, stages: 1, client_name: 1, client_email: 1, client_password: 1, public: 1
             }
         }
     ]).exec((err, project) => {
@@ -519,9 +520,6 @@ app.get('/projects/:id', (req, res) => {
         }
     });
 });
-
-//TODO
-//Stage: Add, Edit, Delete
 
 //Stages: Add
 app.post('/stages/create', isAuthed, (req, res) => {
