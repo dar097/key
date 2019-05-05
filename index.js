@@ -413,7 +413,7 @@ app.post('/projects/:id/edit', isAuthed, (req, res) => {
         req.body = filter(req.body, 'name locality description client_name client_email client_password public');
 
         UploadFile(req, "cover", () => {
-            Projects.findByIdAndUpdate(req.params.id, req.body, { new: true }, (err, edited) => {
+            Projects.findByIdAndUpdate({ _id: req.params.id, manager: req.user._id }, req.body, { new: true }, (err, edited) => {
                 if(err || !edited)
                     res.status(400).send(err || 'Project not found or does not exist.');
                 else{
