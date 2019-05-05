@@ -544,7 +544,7 @@ app.post('/stages/create', isAuthed, (req, res) => {
 app.post('/stages/:id/edit', isAuthed, (req, res) => {
     if(req.user && req.user._id){
         
-        req.body = filter(req.body, 'name project start_date end_date details price status');
+        req.body = filter(req.body, 'name start_date end_date details price status');
 
         UploadManyFiles(req, req.files ? Object.keys(req.files) : [], 0, () => {//if images, file parameter needs to contain the word 'image'
             Stages.findByIdAndUpdate(req.params.id, req.body, { new: true }, (err, stage) => {
@@ -568,6 +568,19 @@ app.post('/stages/:id/delete', isAuthed, (req, res) => {
             else{
                 res.status(200).send({ message: 'Stage removed successfully.' });
             }
+        });
+    } else {
+        res.status(400).send({ error: 'Auth Error' });
+    }
+});
+
+app.get('/stages/:id', isAuthed, (req, res) => {
+    if(req.user && req.user._id){
+        Stages.findById(req.params.id).select('-__v').exec((err, stage) => {
+            if(err || !stage)
+                res.status(400).send(err || 'Stage not found or does not exist.');
+            else
+                res.status(200).send(stage);
         });
     } else {
         res.status(400).send({ error: 'Auth Error' });
