@@ -89,8 +89,27 @@ app.get('/profile', isAuthed, (req, res) => {
                             }
                         },
                         {
+                            $lookup: {
+                                from: 'stages',
+                                let: { pid: "$_id" },
+                                pipeline: [
+                                    {
+                                        $match: {
+                                            $expr: { $eq: ["$$pid", "$project"]}
+                                        }
+                                    },
+                                    {
+                                        $project: {
+                                            __v: 0
+                                        }
+                                    }
+                                ],
+                                as: 'stages'
+                            }
+                        },
+                        {
                             $project: {
-                                name: 1, locality: 1, description: 1, cover: 1, created: 1, year: { $dateToString: { format: "%Y", date: "$created" } }
+                                name: 1, locality: 1, description: 1, cover: 1, created: 1, year: { $dateToString: { format: "%Y", date: "$created" } }, stages: 1
                             }
                         }
                     ],
