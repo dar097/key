@@ -464,7 +464,8 @@ app.get('/projects/:id', (req, res) => {
     Projects.aggregate([
         {
             $match: {
-                $or: [ { manager }, { public: true } ]
+                $or: [ { manager }, { public: true } ],
+                _id: mongoose.Types.ObjectId(req.params.id)
             }
         },
         {
