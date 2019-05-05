@@ -495,8 +495,7 @@ app.get('/projects/:id', (req, res) => {
                 pipeline: [
                     {
                         $match: {
-                            $expr: { $eq: ["$$pid", "$project"]},
-                            status: true
+                            $expr: { $eq: ["$$pid", "$project"]}
                         }
                     },
                     {
