@@ -153,7 +153,7 @@ function UploadFile(req, file, cb){
 }
 
 function UploadManyFiles(req, files, current, cb){
-    if(current == files.length-1){
+    if(current == files.length){
         cb();
         return;
     }
